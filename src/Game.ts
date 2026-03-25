@@ -74,23 +74,14 @@ function setupTouchControls(): void {
     let touchStartX = 0;
     let touchStartY = 0;
     let swipeFired = false;
-    const minSwipeDistance = 20;
+    const minSwipeDistance = 40;
 
     function applySwipe(dx: number, dy: number): void {
         if (Math.abs(dx) > Math.abs(dy)) {
-            Input.leftPressed  = dx < 0;
-            Input.rightPressed = dx > 0;
-            Input.upPressed    = false;
-            Input.downPressed  = false;
+            Input.bufferedDir = dx < 0 ? 'left' : 'right';
         } else {
-            Input.upPressed    = dy < 0;
-            Input.downPressed  = dy > 0;
-            Input.leftPressed  = false;
-            Input.rightPressed = false;
+            Input.bufferedDir = dy < 0 ? 'up' : 'down';
         }
-        setTimeout(() => {
-            Input.leftPressed = Input.rightPressed = Input.upPressed = Input.downPressed = false;
-        }, 300);
     }
 
     gameState.canvas.addEventListener('touchstart', (e: TouchEvent) => {
