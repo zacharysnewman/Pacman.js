@@ -70,6 +70,13 @@ function start(): void {
     update();
 }
 
+function resizeCanvas(): void {
+    const canvas = gameState.canvas;
+    const scale = Math.min(window.innerWidth / 560, window.innerHeight / 720);
+    canvas.style.width  = `${560 * scale}px`;
+    canvas.style.height = `${720 * scale}px`;
+}
+
 window.onload = function () {
     const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
     gameState.canvas = canvas;
@@ -77,6 +84,9 @@ window.onload = function () {
 
     document.onkeydown = Input.checkKeyDown;
     document.onkeyup   = Input.checkKeyUp;
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     start();
 };
