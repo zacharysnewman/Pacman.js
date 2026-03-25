@@ -327,7 +327,7 @@ function start(): void {
 function setupTouchControls(): void {
     let touchStartX = 0;
     let touchStartY = 0;
-    let swipeFired = false;
+    let swipeFiredThisTouch = false;
     const minSwipeDistance = 40;
 
     function applySwipe(dx: number, dy: number): void {
@@ -343,22 +343,24 @@ function setupTouchControls(): void {
         e.preventDefault();
         touchStartX = e.changedTouches[0].clientX;
         touchStartY = e.changedTouches[0].clientY;
-        swipeFired = false;
+        swipeFiredThisTouch = false;
     }, { passive: false });
 
     document.addEventListener('touchmove', (e: TouchEvent) => {
         e.preventDefault();
-        if (swipeFired) return;
         const dx = e.changedTouches[0].clientX - touchStartX;
         const dy = e.changedTouches[0].clientY - touchStartY;
         if (Math.abs(dx) < minSwipeDistance && Math.abs(dy) < minSwipeDistance) return;
-        swipeFired = true;
+        // Reset origin so the next segment of finger movement registers as a new swipe
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+        swipeFiredThisTouch = true;
         applySwipe(dx, dy);
     }, { passive: false });
 
     document.addEventListener('touchend', (e: TouchEvent) => {
         e.preventDefault();
-        if (swipeFired) return;
+        if (swipeFiredThisTouch) return;
         const dx = e.changedTouches[0].clientX - touchStartX;
         const dy = e.changedTouches[0].clientY - touchStartY;
         if (Math.abs(dx) < minSwipeDistance && Math.abs(dy) < minSwipeDistance) return;

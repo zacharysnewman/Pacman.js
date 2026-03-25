@@ -25,7 +25,7 @@ Consolidated view of what is and is not yet implemented in `Pacman.js`, measured
 | `onTileChanged` callback | ✅ | `GameObject.checkTileUpdates()` |
 | `onTileCentered` callback | ✅ | 0.1-tile threshold in `GameObject` |
 | Keyboard input (arrow keys) | ✅ | `Input.ts` |
-| Touch / swipe input | ✅ | `Game.ts` — min 40 px swipe, 8-frame turn buffer |
+| Touch / swipe input | ✅ | `Game.ts` — min 40 px swipe, 8-frame turn buffer; continuous swipe (no lift needed) |
 | Responsive canvas scaling | ✅ | `resizeCanvas()` in `Game.ts` |
 | Timer system | ✅ | `Time.addTimer()` / `Timer.ts` |
 
@@ -220,7 +220,7 @@ Consolidated view of what is and is not yet implemented in `Pacman.js`, measured
 | Phase 1 — Playable Game Loop | ✅ Complete | All ghosts move, collision, HUD, lives, level clear |
 | Phase 2 — Scatter/Chase Mode Switching | ✅ Complete | Timer, corner targeting, reversal, reset |
 | Phase 3 — Ghost House & Release | ❌ Not started | |
-| Phase 4 — Frightened Mode | ✅ Complete | Energizer trigger, blue visuals, flash, PRNG, eating, eyes, score chain |
+| Phase 4 — Frightened Mode | ✅ Complete | Energizer trigger, blue visuals, flash, PRNG, eating, eyes, score chain; mobile continuous swipe added |
 | Phase 5 — Authentic Ghost AI | ❌ Not started | |
 | Phase 6 — Speed System | ❌ Not started | |
 | Phase 7 — Level Progression & Fruit | ❌ Not started | |
