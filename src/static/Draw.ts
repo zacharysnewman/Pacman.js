@@ -146,7 +146,7 @@ export class Draw {
         if (ghostMode === 'frightened') {
             const flashCount = Draw.getFrightenedFlashCount(gameState.level);
             const flashDuration = flashCount * 14 / 60;
-            const timeLeft = gameState.frightenedEnd - Time.timeSinceStart;
+            const timeLeft = gameState.frightenedRemaining;
             const isFlashing = flashCount > 0 && timeLeft < flashDuration && timeLeft > 0;
             let ghostColor = '#0000cc';
             if (isFlashing) {
