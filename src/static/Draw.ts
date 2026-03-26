@@ -490,7 +490,7 @@ export class Draw {
     private static debugRedZones(ctx: CanvasRenderingContext2D): void {
         // The 4 T-junctions where ghosts cannot turn upward in scatter/chase mode.
         // Green = restriction lifted (frightened), Red = upward blocked (scatter/chase).
-        const RED_ZONES = [{ x: 6, y: 14 }, { x: 21, y: 14 }, { x: 6, y: 26 }, { x: 21, y: 26 }];
+        const RED_ZONES = [{ x: 12, y: 13 }, { x: 15, y: 13 }, { x: 12, y: 25 }, { x: 15, y: 25 }];
         const blocked = gameState.frightenedRemaining <= 0;
         const color   = blocked ? 'red' : '#00e676';
 
