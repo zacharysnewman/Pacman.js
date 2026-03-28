@@ -722,10 +722,10 @@ function initializeLevel(): void {
 // ── Ambient Siren ─────────────────────────────────────────────────────────────
 
 function updateAmbientSiren(): void {
-    if (gameState.frightenedRemaining > 0) {
-        Sound.startSiren('blue');
-    } else if (gameState.ghosts.some(g => g.ghostMode === 'eyes')) {
+    if (gameState.ghosts.some(g => g.ghostMode === 'eyes')) {
         Sound.startSiren('eyes');
+    } else if (gameState.frightenedRemaining > 0) {
+        Sound.startSiren('blue');
     } else {
         Sound.startSiren('normal');
     }
