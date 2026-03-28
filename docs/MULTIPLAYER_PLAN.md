@@ -25,7 +25,9 @@
 
 ## Open Design Questions
 
-All design questions resolved. No open items.
+| # | Question | Options |
+|---|---|---|
+| 1 | **P2/P3/P4 colors** | Yellow taken (P1); avoid blue (frightened ghosts) and cyan (Inky); candidates: green, magenta, white, coral |
 
 ---
 
