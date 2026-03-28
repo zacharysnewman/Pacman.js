@@ -9,12 +9,17 @@
 | Ghost eaten chain | **Shared** across all players (escalates globally) |
 | Max player count | **Up to 4 players** |
 | Lives pool size | **Same as single-player (3 lives)** — shared across all players |
-| Lives pool behavior | Deaths decrement the shared pool; when pool hits 0, dying players are eliminated rather than respawned |
-| Game over condition | Only when **all players are simultaneously dead** |
-| Level clear | If **any player** clears the level, **all players** (including eliminated ones) are revived for the next level |
-| Extra life at 10k | **One life added to the shared pool** (not per player) |
+| Lives pool behavior | Death plays animation, player sits out rest of level (no mid-level respawn); shared pool decrements by 1 per death (min 0); at 0, dead players are not revived at level start |
+| Game over condition | Only when **all players are simultaneously inactive** (no active player remains) |
+| Level clear | If **any player** clears the level, **all players who have lives remaining** are revived for the next level |
+| Extra life at 10k | **One life added to the shared pool** (not per player); triggers once per game regardless of which player crosses 10k |
 | Elroy trigger | **No change** — based on total dots remaining in the shared maze; works identically with multiple players |
-| Inky's targeting (Blinky reference) | **Option A** — Inky finds his nearest Pacman and uses that player for both the intermediate point and the Blinky vector; pincer behaviour is preserved against whoever Inky is closest to |
+| Inky's targeting (Blinky reference) | **Option A** — Inky finds his nearest Pacman and uses that actor for both the intermediate point and the Blinky vector; pincer behaviour is preserved against whoever Inky is closest to |
+| Score | **Shared combined score** — all players contribute to one score; not tracked per-player |
+| High score entries | **Single entry** — one combined score, one set of initials |
+| Input assignment | **Keyboard and touch are hardcoded to P1.** Controllers are assigned by connection order: gamepad[0] → P1, gamepad[1] → P2, gamepad[2] → P3, gamepad[3] → P4. P1 therefore accepts keyboard, touch, and gamepad[0] simultaneously. P2–P4 require a connected controller. |
+| Mid-level player death | Players **do not respawn mid-level**. Death animation plays, then the player sits out for the remainder of the level. Ghosts and other players keep moving — no global freeze on individual death. |
+| "READY!" screen | Only shown at **game start and level clear** — not after individual player deaths |
 
 ## Open Design Questions (Unresolved)
 
@@ -22,10 +27,7 @@
 |---|---|---|
 | 1 | **P2/P3/P4 colors** | Yellow taken; candidates: green, magenta, white, coral — avoid blue (frightened ghosts) and cyan (Inky) |
 | 2 | **Death animation overlap** | Two players dying simultaneously — play both anims at once vs. queue them |
-| 3 | **Touch controls for 3–4 players** | Left/right halves for 2P; 4P likely gamepads-only or quadrant zones |
-| 4 | **"READY!" on individual death** | Freeze the whole game (current) vs. only pause the dying player while others keep moving |
-| 5 | **High score entries** | Combined best score vs. per-player with a "2P/3P/4P" tag |
-| 6 | **Fruit split** | First player to reach it eats it (no share) vs. simultaneous proximity awards to all nearby |
+| 3 | **Fruit split** | First player to reach it eats it (no share) vs. simultaneous proximity awards to all nearby |
 
 ---
 
@@ -50,16 +52,15 @@
 
 ### `src/input/KeyboardPlayerInput.ts` *(new)*
 - Implements `PlayerInput`
-- Constructor accepts a key mapping:
-  ```ts
-  new KeyboardPlayerInput({ left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' })
-  new KeyboardPlayerInput({ left: 'KeyA', right: 'KeyD', up: 'KeyW', down: 'KeyS' })
-  new KeyboardPlayerInput({ left: 'KeyJ', right: 'KeyL', up: 'KeyI', down: 'KeyK' })
-  new KeyboardPlayerInput({ left: 'Numpad4', right: 'Numpad6', up: 'Numpad8', down: 'Numpad5' })
-  ```
+- Constructor accepts a fixed arrow-key mapping (always arrows — keyboard is P1 only)
 - Registers its own `keydown`/`keyup` listeners on construction; `destroy()` removes them
 - Moves walkability check (`tileValue > 2`) inside `update(actor)` rather than coupling to `gameState`
 - Preserves 8-frame buffer behavior
+
+### `src/input/TouchPlayerInput.ts` *(new)*
+- Implements `PlayerInput` — wraps the existing swipe detection from `setupTouchControls()`
+- Touch is P1 only; swipe fires into P1's buffer
+- `destroy()` removes touch listeners
 
 ### `src/input/GamepadPlayerInput.ts` *(new)*
 - Implements `PlayerInput`
@@ -69,11 +70,17 @@
 - Mirrors 8-frame buffer behavior of keyboard input
 - Static helpers:
   - `GamepadPlayerInput.connectedIndices(): number[]` — returns indices of currently connected gamepads
-  - Listens to `gamepadconnected` / `gamepaddisconnected` window events; exposes a callback for the UI to react
+  - Listens to `gamepadconnected` / `gamepaddisconnected` window events; exposes a callback for the player select UI to react
+
+### `src/input/CompositePlayerInput.ts` *(new)*
+- Implements `PlayerInput` — wraps multiple `PlayerInput` instances and merges their state
+- Used for P1, which simultaneously accepts keyboard, touch, and gamepad[0]
+- `update(actor)` calls each sub-input's `update`, then ORs all pressed flags and uses the most recent buffered direction
 
 ### `src/Game.ts`
 - Remove global `Input` import and `keydown`/`keyup` registration on window
-- Each `PlayerState` owns its `PlayerInput` instance (constructed in player factory, see Phase 11)
+- P1 gets `new CompositePlayerInput([keyboard, touch, gamepad0])`
+- P2–P4 each get `new GamepadPlayerInput(1/2/3)`; only created if that gamepad index is connected
 - Game loop: `for (const p of gameState.players) p.input.update(p.actor)` replaces `Input.update()`
 - `destroy()` called on each input instance when returning to menu
 
@@ -107,28 +114,24 @@ export interface PlayerState {
 
 ---
 
-## Phase 3 — Per-Player Stats
+## Phase 3 — Shared Score & Stats Cleanup
 
-**Goal:** `Stats` stops being a static class with one score/lives and becomes an instance per player.
-
-### `src/PlayerStats.ts` *(new, replaces instance use of `Stats`)*
-- Instance properties: `currentScore`, `extraLifeAwarded`
-- Instance methods: `addToScore(points)`, `reset()`
-- `addToScore` fires a callback (or checks against `gameState.sharedLives`) when score crosses 10,000 — adds **one life to the shared pool**, flagged so it only triggers once per game total (not once per player)
+**Goal:** Score is a single shared value (not per-player). Move `lives` out of `Stats` and into `gameState`.
 
 ### `src/static/Stats.ts`
-- Remove `lives`, `currentScore`, `extraLifeAwarded` static properties
-- Keep static: `highScore`, `loadHighScores()`, `saveScore()`, `qualifiesForTopTen()`, `loadBestScore()`
-- `highScore` updated whenever any player's score surpasses it
+- Remove `lives` static property — replaced by `gameState.sharedLives`
+- Keep `currentScore` as-is (already a single value — no change needed for multiplayer)
+- Keep `extraLifeAwarded` — rename to `extraLifeAwardedThisGame` for clarity; still fires once per game when shared score crosses 10,000, adding 1 to `gameState.sharedLives`
+- All other static methods unchanged: `highScore`, `loadHighScores()`, `saveScore()`, `qualifiesForTopTen()`, `loadBestScore()`
+
+### `src/game-state.ts`
+- Add `sharedLives: number` (already noted in Phase 2)
+- No `currentScore` move needed — `Stats.currentScore` works fine as-is
 
 ### `src/static/Draw.ts` — `Draw.hud()`
-- Updated signature: `Draw.hud(players: PlayerState[], sharedLives: number)`
-- Shared lives displayed once (bottom-left, Pacman icons) — single pool
-- Per-player scores across the top row, adapting to player count:
-  - 1P: `1UP` top-left, `HIGH SCORE` center (unchanged)
-  - 2P: `1UP` top-left, `HIGH SCORE` center, `2UP` top-right
-  - 3P/4P: scores equally spaced across top, high score omitted or shown very small
-- Eliminated players shown dimmed/grey with no score updates
+- Score display unchanged from single-player layout: `SCORE` top-left, `HIGH SCORE` center
+- **Shared lives pool** bottom-left (same Pacman icons, now representing the pool not individual lives)
+- Inactive (dead) players rendered with a distinct visual on their Pacman actor (see Phase 7)
 
 ---
 
@@ -195,16 +198,23 @@ function checkCollisions(): void {
 
 ### `src/Game.ts` — `eatGhost(ghost, player)`
 - `ghostEatenChain` stays on `gameState` — **shared**, escalates across all players globally
-- `player.stats.addToScore(score)` — attributed to the player who ate the ghost
-- `player.frozen = true` for 0.5s — only freezes that player (see Design Question 4 re: READY! behavior)
+- `Stats.addToScore(score)` — goes to the shared score (no per-player attribution needed)
+- `player.frozen = true` for 0.5s — only freezes that player; other players and ghosts keep moving
 
 ### `src/Game.ts` — `loseLife(player)`
-- `gameState.sharedLives--`
+- `gameState.sharedLives = Math.max(0, gameState.sharedLives - 1)`
 - Sets `player.dying = true`, `player.deathProgress = 0`
-- If `gameState.sharedLives <= 0`: mark `player.active = false` after death anim — no respawn
-- If `gameState.sharedLives > 0`: respawn this player after death anim
-- Game over check: `gameState.players.every(p => !p.active)` → trigger full game over
-- Level clear revive: on `levelClear()`, set all players `active = true`, reset positions, restore `sharedLives = 3`
+- **No global `gameState.frozen`** — other players and all ghosts continue unaffected
+- After death animation completes: `player.dying = false`, `player.active = false` — player sits out for the rest of the level
+- **No READY! sequence, no position reset** at this point — that only happens at level start/clear
+- Game over check after death anim: `if (gameState.players.every(p => !p.active)) triggerGameOver()`
+
+### `src/Game.ts` — `levelClear()`
+- Players revived at level start: `p.active = true`, `p.dying = false` for all players where `gameState.sharedLives > 0`
+- Players who ran the pool to 0 (dead with 0 lives) stay `active = false` — they are fully eliminated
+- Shared lives pool **not reset** on level clear — it carries over; it only starts at 3 at game start
+- All active player positions reset to start tile
+- READY! sequence plays as normal
 
 ### `src/Game.ts` — `checkFruitCollision()`
 - Loop over all active players; first player to collide eats the fruit (removed on first hit)
@@ -258,8 +268,8 @@ All chase-mode targeting resolves the Pacman reference through `nearestPlayer()`
 - Each player's death anim plays independently
 
 ### `src/static/Draw.ts` — `Draw.ghost(obj)`
-- Replace `gameState.pacmanDying` check with `gameState.players.some(p => p.dying)`
-- Preserves the original behavior of hiding ghosts during any death sequence
+- Remove the `gameState.pacmanDying` visibility check entirely — ghosts are **always visible** during individual player deaths since the game keeps running
+- Ghosts are only hidden if a global freeze is active (level clear flash, game over)
 
 ### `src/static/Draw.ts` — `Draw.hud(players, sharedLives)`
 - Single shared lives row bottom-left (Pacman icons representing pool)
@@ -283,63 +293,58 @@ for (const p of gameState.players) {
 
 ## Phase 8 — Player Selection Menu
 
-**Goal:** Screen between the start screen and gameplay where 1–4 players join and assign input devices.
+**Goal:** Screen between the start screen and gameplay showing player slots and connected controllers.
+
+### Input assignment (fixed, not user-configurable)
+- **P1** always exists: keyboard (arrows) + touch swipes + gamepad[0] if connected
+- **P2** exists if gamepad[1] is connected
+- **P3** exists if gamepad[2] is connected
+- **P4** exists if gamepad[3] is connected
+- Player count is derived from connected controllers; no manual join needed
 
 ### `src/Game.ts` — new `playerSelectLoop()` state
 New game phase after tapping start:
 
-**Layout (up to 4 slot cards):**
+**Layout (up to 4 slot cards, grayed out if no controller for that slot):**
 ```
-┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
-│  P1  │ │  P2  │ │  P3  │ │  P4  │
-│  ●   │ │  ●   │ │  —   │ │  —   │
-│ARROWS│ │ WASD │ │      │ │      │
-│JOINED│ │JOINED│ │ JOIN │ │ JOIN │
-└──────┘ └──────┘ └──────┘ └──────┘
-         PRESS START / TAP TO BEGIN
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│    P1    │ │    P2    │ │    P3    │ │    P4    │
+│    ●     │ │    ●     │ │    —     │ │    —     │
+│KEYS+PAD 1│ │  PAD 2   │ │ NO PAD   │ │ NO PAD   │
+│  READY   │ │  READY   │ │          │ │          │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+              PRESS START / TAP TO PLAY
 ```
 
-- Slot card shows player color Pacman icon if joined, grey outline if open
-- Input device label: `ARROWS`, `WASD`, `IJKL`, `NUMPAD`, `GAMEPAD 1`–`GAMEPAD 4`
-- Pressing any button on a connected gamepad claims that slot
-- Keyboard: P1 defaults to arrows, P2 WASD, P3 IJKL, P4 numpad
-- Minimum 1 player required to start
-- `GAMEPAD N CONNECTED` badge appears dynamically as controllers plug in
+- P1 slot always active; shows `KEYBOARD` if no gamepad[0], `KEYS + PAD 1` if gamepad[0] connected
+- P2–P4 slots show `PAD N` if connected, greyed-out `NO PAD` if not
+- Controllers can be plugged in/out on this screen; slots update live via `gamepadconnected` / `gamepaddisconnected`
+- Minimum 1 player (P1 always present); tap/press start with however many controllers are connected
 
 ### `src/static/Draw.ts` — `Draw.playerSelectScreen(slots)`
 - New static method rendering slot cards
 - Slot data type:
   ```ts
-  interface PlayerSlot { id: number; joined: boolean; inputLabel: string; color: string }
+  interface PlayerSlot { id: number; active: boolean; inputLabel: string; color: string }
   ```
 
 ---
 
 ## Phase 9 — Game Over / End Screen
 
-**Goal:** End state reflects up to 4 players with winner declaration and per-player high score entry.
+**Goal:** End state shows the shared final score, prompts for one set of initials if it qualifies.
 
 ### `src/Game.ts` — game over trigger
-- `loseLife(player)` sets `player.active = false` when shared pool is empty
-- Each frame: `if (gameState.players.every(p => !p.active)) triggerGameOver()`
+- Each frame after a death completes: `if (gameState.players.every(p => !p.active)) triggerGameOver()`
 - Game continues as long as at least one player is active
 
-### `src/Game.ts` — `levelClear()`
-- All players revived: `p.active = true`, `p.dying = false`
-- Shared lives pool reset to 3
-- All positions reset
+### `src/static/Draw.ts` — `Draw.gameOverScreen()`
+- Same layout as single-player: dark overlay, red `GAME OVER`, shared final score
+- No per-player breakdown needed (score is shared)
 
-### `src/static/Draw.ts` — `Draw.gameOverScreen(players)`
-- Dark overlay
-- `GAME OVER` heading (red)
-- Per-player result rows ranked by score: `P1  AAA  012340  👑`
-- Crown on highest scorer; `DRAW` if tied
-- `TAP TO CONTINUE` prompt after 2s
-
-### `src/Game.ts` — initials entry sequence
-- After game over screen, iterate players whose score `qualifiesForTopTen()` sequentially
-- Each calls `Stats.saveScore(initials, player.stats.currentScore)`
-- After all entries: return to menu
+### `src/Game.ts` — initials entry
+- Unchanged from single-player: one prompt, one set of initials, `Stats.saveScore(initials, Stats.currentScore)`
+- After entry (or skip if score doesn't qualify): return to menu
 
 ---
 
@@ -353,9 +358,13 @@ New game phase after tapping start:
 - `Sound.ghostEaten()` — fires on any player eating a ghost; no change
 
 ### `src/Game.ts` — `updateAmbientSiren()`
-- Stop siren only on `gameState.frozen` (global) or `gameState.gameOver`
-- Per-player `player.frozen` (ghost-eat pause) should **not** stop the siren — other players keep moving
+- Stop siren only on global `gameState.frozen` or `gameState.gameOver`
+- Individual player deaths no longer trigger `gameState.frozen`, so siren keeps playing through them — no change needed
+- Individual `player.frozen` (ghost-eat pause for that player) does not stop the siren
 - Siren state priority unchanged: `eyes` > `blue` > `normal`
+
+### `src/Game.ts` — `Sound.death()`
+- With multiple players potentially dying close together, death sounds may overlap — Web Audio handles this naturally; no change needed
 
 ---
 
