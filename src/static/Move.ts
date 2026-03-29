@@ -113,8 +113,10 @@ export class Move {
             return;
         }
 
-        // Arrived at spawn — begin exiting immediately (same as if it had been in house)
+        // Arrived at spawn — set normal maze speed and begin exiting
         ghost.x = spawnX;
+        const lvl = gameState.level;
+        ghost.moveSpeed = lvl === 1 ? 0.75 : lvl <= 4 ? 0.85 : 0.95;
         ghost.ghostMode = 'exiting';
     }
 

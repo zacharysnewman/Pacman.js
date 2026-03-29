@@ -464,8 +464,7 @@ function makeGhostTileCentered(getGhost: () => IGameObject): (_x: number, _y: nu
         // Eyes arrive at ghost house entrance — align to center column and enter the house
         if (ghost.ghostMode === 'eyes' && ghost.roundedX() === 13 && ghost.roundedY() === 14) {
             ghost.x = 13 * unit + unit / 2; // snap to center column so entry goes straight down
-            ghost.moveSpeed = getGhostNormalSpeed(gameState.level);
-            ghost.ghostMode = 'entering';
+            ghost.ghostMode = 'entering'; // keep SPEED_EYES — ghostEnter sets normal speed on exit
             return;
         }
         AI.ghostTileCenter(ghost);
