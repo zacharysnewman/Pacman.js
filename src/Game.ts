@@ -478,7 +478,8 @@ function resetPositions(afterDeath = false): void {
     const pmPos = tileToPixel(START.pacman.x, START.pacman.y);
     for (const player of gameState.players) {
         player.actor.x = pmPos.x; player.actor.y = pmPos.y;
-        player.actor.moveDir = 'left'; player.actor.moveSpeed = getPacmanNormalSpeed(gameState.level);
+        player.actor.moveDir = (player.id === 2 || player.id === 4) ? 'right' : 'left';
+        player.actor.moveSpeed = getPacmanNormalSpeed(gameState.level);
         player.frozen = false;
     }
 
