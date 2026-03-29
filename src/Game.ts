@@ -697,6 +697,8 @@ function loseLife(player: PlayerState): void {
     Time.addTimer(DEATH_ANIM_DURATION, () => {
         // levelClear() resets dying to false — if it already fired, skip this death entirely
         if (!player.dying) return;
+        // Guard: another player's death may have already triggered game over in the same frame
+        if (gameState.gameOver) return;
         player.dying = false;
         player.active = false;
 
