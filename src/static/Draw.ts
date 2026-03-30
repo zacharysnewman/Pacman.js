@@ -163,9 +163,10 @@ export class Draw {
         }
 
         if (id === 2) {
-            // Backpack Man — brown rounded rect on the back
-            const pw = size * 0.45;
-            const ph = size * 1.1;
+            // Backpack Man — brown rounded rect on the back, rotates with direction
+            const isVertical = backDy !== 0;
+            const pw = size * (isVertical ? 1.1  : 0.45);
+            const ph = size * (isVertical ? 0.45 : 1.1);
             const bx = x + backDx * (size * 0.85) - pw / 2;
             const by = y + backDy * (size * 0.85) - ph / 2;
             ctx.fillStyle = '#8B5E3C';
@@ -209,23 +210,28 @@ export class Draw {
             ctx.arc(bcx, bcy, size * 0.18, 0, Math.PI * 2);
             ctx.fill();
         } else if (id === 4) {
-            // Tic Tac Man — white pill on the back, perpendicular to travel
-            const longAxis  = size * 0.45;
-            const shortAxis = size * 0.22;
-            // Pill long axis is perpendicular to movement direction
-            const pilW = (backDx !== 0) ? shortAxis : longAxis;
-            const pilH = (backDx !== 0) ? longAxis  : shortAxis;
-            const bx = x + backDx * (size * 0.9) - pilW / 2;
-            const by = y + backDy * (size * 0.9) - pilH / 2;
-            ctx.fillStyle = '#f0f0f0';
+            // Tic-Tac-Toe Pac-Man — # grid drawn on body, rotates with moveDir
+            const gridHalf = size * 0.38;
+            const third    = gridHalf * 0.55;
+            const angle = moveDir === 'right' ?  0
+                        : moveDir === 'down'  ?  Math.PI / 2
+                        : moveDir === 'left'  ?  Math.PI
+                        :                       -Math.PI / 2;
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+            ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+            ctx.lineWidth = size * 0.07;
+            ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.roundRect(bx, by, pilW, pilH, Math.min(pilW, pilH) / 2);
-            ctx.fill();
-            ctx.strokeStyle = '#aaaaaa';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.roundRect(bx, by, pilW, pilH, Math.min(pilW, pilH) / 2);
+            // Two horizontal bars
+            ctx.moveTo(-gridHalf, -third); ctx.lineTo(gridHalf, -third);
+            ctx.moveTo(-gridHalf,  third); ctx.lineTo(gridHalf,  third);
+            // Two vertical bars
+            ctx.moveTo(-third, -gridHalf); ctx.lineTo(-third, gridHalf);
+            ctx.moveTo( third, -gridHalf); ctx.lineTo( third, gridHalf);
             ctx.stroke();
+            ctx.restore();
         }
     }
 
