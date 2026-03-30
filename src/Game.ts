@@ -1077,7 +1077,7 @@ function handleMenuInteraction(hasGamepad = false): void {
 function playerSelectLoop(): void {
     // PAD SHIFT (default): P1=keyboard, P2=pad0, P3=pad1, P4=pad2
     // KEYBOARD:            P1=keyboard+pad0, P2=pad1, P3=pad2, P4=pad3
-    let controllerMode = true;
+    let controllerMode = false;
 
     function connectedCount(): number { return GamepadPlayerInput.connectedIndices().length; }
 
